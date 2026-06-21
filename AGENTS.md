@@ -57,27 +57,38 @@ python scripts/check_ai_assets.py
 
 ## 3. 仓库速览
 
-- 项目定位：股票智能分析系统，覆盖 A 股、港股、美股。
-- 主流程：抓取数据 -> 技术分析/新闻检索 -> LLM 分析 -> 生成报告 -> 通知推送。
+- 项目定位：股票智能分析系统，覆盖 A 股、港股、美股、日股（`.T` 后缀）、韩股（`.KS` / `.KQ` 后缀）。
+- 主流程：抓取数据 -> 技术分析/情报检索 -> LLM 分析（单 LLM 或多 Agent）-> 生成报告 -> 通知推送。
 - 关键入口：
-  - `main.py`：分析任务主入口
+  - `main.py`：分析任务主入口（CLI，含 `--stocks / --market-review / --schedule / --serve / --serve-only / --dry-run`）
   - `server.py`：FastAPI 服务入口
   - `apps/dsa-web/`：Web 前端
   - `apps/dsa-desktop/`：Electron 桌面端
   - `.github/workflows/`：CI、发布、每日任务
-- 核心职责：
-  - `src/core/`：主流程编排
-  - `src/services/`：业务服务层
-  - `src/repositories/`：数据访问层
-  - `src/reports/`：报告生成
-  - `src/schemas/`：Schema / 数据结构
-  - `data_provider/`：多数据源适配与 fallback
-  - `api/`：FastAPI API
-  - `bot/`：机器人接入
-  - `scripts/`：本地脚本
+- 核心模块职责：
+  - `src/core/`：主流程编排（`pipeline.py`、`market_review*.py`、`config_manager.py`、`trading_calendar.py`）
+  - `src/agent/`：多 Agent 架构（`orchestrator.py`、`executor.py`、`runner.py`、`factory.py`；子目录 `agents/`、`tools/`、`skills/`、`strategies/`）
+  - `src/llm/`：LLM 调用抽象层（错误分类、参数恢复、用量记录）
+  - `src/services/`：业务服务层（分析上下文构建、DecisionSignal 生命周期、情报源采集、AlphaSift 热点、持仓风险、告警、回测、报告渲染等）
+  - `src/repositories/`：数据访问层（`alert_repo`、`analysis_repo`、`backtest_repo`、`decision_signal_repo`、`intelligence_repo`、`portfolio_repo`、`stock_repo`）
+  - `src/schemas/`：Schema / 数据结构（`analysis_context_pack.py`、`decision_action.py`、`market_light.py`、`report_schema.py`）
+  - `src/notification_sender/`：各渠道发送器实现（飞书、Telegram、钉钉、微信、邮件、Discord、Slack 等）
+  - `templates/`：Jinja2 报告模板（`report_markdown.j2`、`report_brief.j2`、`report_wechat.j2`）
+  - `strategies/`：YAML 格式的交易策略定义（`bull_trend`、`shrink_pullback`、`volume_breakout` 等）
+  - `data_provider/`：多数据源适配与 fallback（AkShare、Tushare、YFinance、Baostock、LongBridge 等）
+  - `api/`：FastAPI API（`v1/endpoints/` 含 analysis、decision_signals、intelligence、alphasift、usage、agent、history、alerts、backtest、portfolio、stocks、auth、health 等）
+  - `bot/`：机器人接入（`platforms/` 含飞书 Stream、钉钉 Stream、Discord；`commands/` 含 analyze、ask、chat、batch、research、market、history、status、strategies、help）
+  - `scripts/`：本地脚本与 CI 工具
   - `.github/scripts/`：GitHub 自动化脚本
   - `tests/`：pytest 测试
   - `docs/`：文档与说明
+- 近期重要能力（不影响现有契约的增量）：
+  - **Decision Signals**：个股分析报告提取结构化决策信号，支持去重、状态机、后验评估与 Web 展示（`/api/v1/decision-signals`）
+  - **情报源（Intelligence Sources）**：可配置 RSS/Atom/NewsNow 资讯源，落库后注入分析上下文（`/api/v1/intelligence/`，`NEWS_INTEL_*` 配置）
+  - **AlphaSift 热点**：热点题材榜单、题材详情与概念股，作为市场情报增强层（`/api/v1/alphasift/`，按需安装）
+  - **Token 用量监控**：LLM 调用统计看板（`/api/v1/usage/dashboard`）
+  - **运行流快照**：分析任务拓扑可视化（`/api/v1/*/run-flow`）
+  - **日韩市场 MVP**：`.T` / `.KS` / `.KQ` 后缀代码走 YFinance 路径，不影响 A 股/港股/美股既有逻辑
 
 ## 4. 常用命令
 
